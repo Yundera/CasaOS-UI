@@ -81,7 +81,7 @@ export default {
 	name: 'disks',
 	icon: "storage-outline",
 	title: "Storage Status",
-	initShow: false, //not working in container for now so disabling it
+	initShow: true,
 	mixins: [mixin],
 
 	data() {
