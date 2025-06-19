@@ -4,8 +4,8 @@ import sortBy from 'lodash/sortBy'
 import last from 'lodash/last'
 import noticeBlock from '@/components/noticBlock/noticeBlock'
 import { mixin } from '@/mixins/mixin'
-import SyncBlock from '@/components/syncthing/SyncBlock.vue'
-import SmartBlock from '@/components/smartHome/SmartBlock.vue'
+import WhatIsYunderaBlock from '@/components/pcs/WhatIsYunderaBlock.vue'
+import ManagePCSBlock from '@/components/pcs/ManagePCSBlock.vue'
 import events from '@/events/events'
 import Business_ShowNewAppTag from '@/mixins/app/Business_ShowNewAppTag'
 import DiskLearnMore from '@/components/Storage/DiskLearnMore.vue'
@@ -13,7 +13,7 @@ import { ice_i18n } from '@/mixins/base/common-i18n'
 
 export default {
   name: 'CoreService',
-  components: { SmartBlock, SyncBlock, NoticeBlock: noticeBlock, Swiper, SwiperSlide },
+  components: { WhatIsYunderaBlock, ManagePCSBlock, NoticeBlock: noticeBlock, Swiper, SwiperSlide },
   mixins: [mixin, Business_ShowNewAppTag],
   inject: ['homeShowFiles'],
   data() {
@@ -281,7 +281,7 @@ export default {
       const operateType = eventJson.name.split(':')[2]
       const driveType = eventJson.name.split(':')[1]
       const entityUUID = eventJson.properties.serial || eventJson.properties['local-storage:uuid']
-      if (!this.noticesData[driveType]) {
+      /*if (!this.noticesData[driveType]) {
         this.$set(this.noticesData, driveType, {
           prelude: {
             title: 'Found a new drive',
@@ -297,8 +297,8 @@ export default {
             icon: 'mdi-arrow-right',
           },
         })
-      }
-      if (operateType === 'added') {
+      }*/
+      /*if (operateType === 'added') {
         const availValue = eventJson.properties.avail > 0 ? this.renderSize(eventJson.properties.size - eventJson.properties.avail) : 'NaN'
         const percent = `${availValue} / ${this.renderSize(eventJson.properties.size)}`
         // let percent = eventType.toUpperCase();
@@ -323,7 +323,7 @@ export default {
         if (Object.keys(this.noticesData[driveType].content).length === 0) {
           this.$delete(this.noticesData, driveType)
         }
-      }
+      }*/
     },
     transformNewDisk(eventJson, operateType) {
       const eventType = eventJson.properties.tran
@@ -345,7 +345,7 @@ export default {
           },
         })
       }
-      if (operateType === 'added') {
+      /*if (operateType === 'added') {
         const percent = eventJson.properties.avail ? `${this.renderSize(eventJson.properties.used)} / ${this.renderSize(eventJson.properties.size)}` : 'NaN'
         this.$set(this.noticesData[eventType].content, entityUUID, {
           title: eventJson.properties.model || 'Found a new drive',
@@ -369,7 +369,7 @@ export default {
         if (Object.keys(this.noticesData[eventType].content).length === 0) {
           this.$delete(this.noticesData, eventType)
         }
-      }
+      }*/
     },
     addNotice(Json, rootName) {
       this.$set(this.noticesData, rootName, {
@@ -559,10 +559,10 @@ export default {
       <NoticeBlock :notice-data="noticeCard" :notice-type="key" @delete-notice="refreshNotice" />
     </SwiperSlide>
     <SwiperSlide v-if="recommendShow">
-      <SyncBlock />
+      <WhatIsYunderaBlock />
     </SwiperSlide>
     <SwiperSlide v-if="recommendShow">
-      <SmartBlock />
+      <ManagePCSBlock />
     </SwiperSlide>
     <template #pagination>
       <div v-show="recommendShow || noticeLength !== 0" class="swiper-pagination" />

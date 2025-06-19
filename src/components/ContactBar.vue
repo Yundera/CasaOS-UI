@@ -20,7 +20,7 @@
 			<div class="popper  tooltip-content">
 				{{ $t('Join Discord') }}
 			</div>
-			<a slot="reference" rel="noopener" href="https://discord.gg/knqAbbBbeX" target="_blank"
+			<a slot="reference" rel="noopener" href="https://discord.gg/j49sKn7AHK" target="_blank"
 				@click="$messageBus('connect_discord')">
 				<b-icon icon="discord" pack="casa"></b-icon>
 			</a>
@@ -33,7 +33,7 @@
 			<div class="popper  tooltip-content">
 				{{ $t('Visit our Github') }}
 			</div>
-			<a slot="reference" rel="noopener" href="https://github.com/IceWhaleTech/CasaOS" target="_blank"
+			<a slot="reference" rel="noopener" href="https://github.com/Yundera/casa-img" target="_blank"
 				@click="$messageBus('connect_github')">
 				<b-icon icon="github" pack="casa"></b-icon>
 			</a>
