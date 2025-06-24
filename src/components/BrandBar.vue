@@ -1,7 +1,7 @@
 <template>
 	<div class="brand-bar is-flex is-align-items-flex-end has-text-white">
 		<figure class="image _is-136x26 mb-3">
-			<img alt="logo" srcset="../assets/img/logo/logo.svg 2x, ../assets/img/logo/logo.png 1x">
+			<img alt="logo" src="../assets/img/logo/logo.png">
 		</figure>
 	</div>
 </template>
