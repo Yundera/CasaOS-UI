@@ -7,7 +7,7 @@ import {
 	ComposeMethodsApiFactory,
 	InternalMethodsApiFactory,
 	AppStoreMethodsApiFactory, AppStoreMethodsApiFp, AppStoreMethodsApi
-} from "@icewhale/casaos-appmanagement-openapi";
+} from "@yundera/casaos-appmanagement-openapi";
 
 // 初始化 openapi 配置
 const config = new Configuration({});

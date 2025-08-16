@@ -1,0 +1,10 @@
+onlyBuiltDependencies:
+  - '@vue-office/docx'
+  - '@vue-office/excel'
+  - '@vue-office/pdf'
+  - core-js
+  - postinstall-postinstall
+  - swiper
+  - vue-demi
+  - vue-popperjs
+  - yorkie
