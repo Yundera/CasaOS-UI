@@ -13,7 +13,7 @@
 
 			<div v-if="step == 1" class="has-text-centered">
 				<div v-animate-css="s1Ani" class=" is-flex is-justify-content-center">
-					<b-image :src="require('@/assets/img/logo/yundera-logo.svg')" class="is-128x128 mb-4"></b-image>
+					<b-image :src="require('@/assets/img/logo/yundera-startup.svg')" class="yundera-logo mb-4"></b-image>
 				</div>
 
 				<h2 v-animate-css="s2Ani" class="title is-2 mb-5 has-text-centered __attached_title">{{
@@ -275,9 +275,9 @@ export default {
 			border-color: transparent;
 		}
 
-		.is-128x128 {
-			height: 96px;
-			width: 96px;
+		.yundera-logo {
+			width: 180px;
+			max-width: 100%;
 		}
 
 		.is-3 {
@@ -313,5 +313,11 @@ export default {
 
 .__op60 {
 	opacity: 0.6;
+}
+
+.yundera-logo {
+	width: 280px;
+	max-width: 100%;
+	display: block;
 }
 </style>
