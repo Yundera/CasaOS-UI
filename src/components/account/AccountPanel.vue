@@ -61,7 +61,7 @@
               <b-input v-model="oriPassword" :placeholder="$t('Original password')" password-reveal type="password"></b-input>
             </b-field>
           </ValidationProvider>
-          <ValidationProvider v-slot="{ errors, valid }" name="Password" rules="required|min:12" vid="password">
+          <ValidationProvider v-slot="{ errors, valid }" name="Password" rules="required|password_policy" vid="password">
             <b-field :message="$t(errors)" :type="{ 'is-danger': errors[0], 'is-success': valid }" class="mb-5 has-text-light">
               <b-input v-model="password" :placeholder="$t('New password')" password-reveal type="password"></b-input>
             </b-field>

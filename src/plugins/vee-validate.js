@@ -86,3 +86,15 @@ extend('not_in_ports', {
 	},
 	message: 'The port is used by other services',
 })
+
+extend('password_policy', {
+	validate: (value) => {
+		// Allow demo password as exception
+		if (value === 'demodemo') {
+			return true;
+		}
+		// Otherwise require minimum 12 characters
+		return value && value.length >= 12;
+	},
+	message: 'Password must be at least 12 characters long',
+})

@@ -44,7 +44,7 @@
 									 v-on:keyup.enter.native="handleSubmit(register)"></b-input>
 						</b-field>
 					</ValidationProvider>
-					<ValidationProvider v-slot="{ errors, valid }" name="Password" rules="required|min:12"
+					<ValidationProvider v-slot="{ errors, valid }" name="Password" rules="required|password_policy"
 										vid="password">
 						<b-field :label="$t('Password')" :message="$t(errors)"
 								 :type="{ 'is-danger': errors[0], 'is-success': valid }"
