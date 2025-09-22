@@ -348,6 +348,8 @@
   "Check then update": "Check then update",
   "At least one extra hard drive is needed for this feature.": "At least one extra hard drive is needed for this feature.",
   "APP may not be available": "App may not be available",
+  "App is starting, please wait...": "App is starting, please wait...",
+  "Taking longer than expected": "Taking longer than expected",
   "Please": "Please",
   "{appName} is the latest version!": "{appName} is the latest version!",
   "{name} has been updated to the latest version!": "{name} has been updated to the latest version!",

@@ -163,7 +163,7 @@ export default {
         // type is one of 'official' or 'community'.
         this.$refs.dro.isActive = false
         if (item.status === 'running') {
-          this.openAppToNewWindow(item)
+          this.openAppWithHealthCheck(item)
         }
         else {
           this.toggle(item)
@@ -182,6 +182,23 @@ export default {
           break
         default:
           break
+      }
+    },
+
+    async openAppWithHealthCheck(item) {
+      try {
+        // Quick health check to prevent 502 errors
+        const isHealthy = await this.$openAPI.appManagement.compose.checkComposeAppHealthByID(item.name)
+        if (isHealthy && isHealthy.status === 200) {
+          this.openAppToNewWindow(item)
+        } else {
+          // App not ready, use the launcher check flow
+          this.firstOpenThirdApp(item)
+        }
+      } catch (error) {
+        // Health check failed, use the launcher check flow
+        console.warn('Health check failed, using launcher flow:', error)
+        this.firstOpenThirdApp(item)
       }
     },
 
