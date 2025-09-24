@@ -15,7 +15,7 @@
 		<h2 class="has-text-emphasis-01 has-text-white mt-2">{{ appDetailData.name }}</h2>
 		<h1 v-if="status === 'pending'" class="has-text-sub-03 has-text-white mt-6">{{ $t('App is starting, please wait...') }}
 		</h1>
-		<h1 v-else-if="counter >= 15 && counter < checkCounts" class="has-text-sub-03 has-text-white mt-6">{{ $t('Taking longer than expected') }}</h1>
+		<h1 v-else-if="counter >= 60 && counter < checkCounts" class="has-text-sub-03 has-text-white mt-6">{{ $t('Taking longer than expected') }}</h1>
 		<h1 v-else class="has-text-sub-03 has-text-white mt-6">{{ $t('APP may not be available') }}</h1>
 		<b-image v-if="status === 'pending'" :src="require('@/assets/img/loading/waiting.svg')" alt="pending"
 				 class="is-48x48 mt-6"/>
@@ -44,7 +44,7 @@ export default {
 			status: "pending",
 			timer: null,
 			isCheckFailed: false,
-			checkCounts: 30,
+			checkCounts: 150,
 			counter: 0
 		}
 	},
@@ -99,13 +99,13 @@ export default {
 				clearInterval(this.timer)
 			} else {
 				this.isCheckFailed = true
-				// Show manual fallback option after 15 attempts (~30 seconds)
-				if (this.counter >= 15) {
+				// Show manual fallback option after 60 attempts (~2 minutes)
+				if (this.counter >= 60) {
 					this.status = "fallback"
 				}
 			}
 		}
-	},
+	}
 }
 </script>
 
