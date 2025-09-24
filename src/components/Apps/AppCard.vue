@@ -38,6 +38,13 @@ export default {
       isSaving: false,
       isActiveTooltip: false,
       dropdownPosition: 'is-bottom-right',
+      // Web UI readiness tracking
+      isWebUIInitializing: false,
+      webUICheckStartTime: null,
+      healthCheckTimer: null,
+      healthCheckBackoff: 2000, // Start with 2 seconds
+      maxHealthCheckBackoff: 30000, // Max 30 seconds between checks
+      webUIReady: false,
     }
   },
 
@@ -62,13 +69,16 @@ export default {
         return this.$t('Restarting')
       }
       else if (this.isStarting) {
-        return this.$t('updateState')
+        return this.$t('Starting')
       }
       else if (this.isRebuilding) {
         return this.$t('Rebuilding')
       }
       else if (this.isCheckThenUpdate) {
         return this.$t('CheckThenUpdate')
+      }
+      else if (this.isWebUIInitializing && this.item.status === 'running') {
+        return this.getWebUIWaitingMessage()
       }
       else if (this.item.status === 'running') {
         return this.$t('Open')
@@ -86,7 +96,7 @@ export default {
       // }
     },
     isLoading() {
-      const active = this.isUninstalling || this.isUpdating || this.isRestarting || this.isStarting || this.isSaving || this.isRebuilding // || this.isStoping || this.isSaving
+      const active = this.isUninstalling || this.isUpdating || this.isRestarting || this.isStarting || this.isSaving || this.isRebuilding || this.isWebUIInitializing // || this.isStoping || this.isSaving
       return active
     },
     isV1App() {
@@ -104,10 +114,30 @@ export default {
     shutDownClass() {
       return this.item.status !== 'running' ? 'shutdown-rounded' : ''
     },
+    hasWebUI() {
+      // Skip system apps and LinkApps - they handle their own opening
+      if (this.item.app_type === 'system' || this.item.app_type === 'LinkApp') {
+        return false
+      }
+
+      // Apps with an 'index' property have web UI (from x-casaos configuration)
+      return !!(this.item.index)
+    },
 
   },
 
   watch: {
+    'item.status'(newStatus, oldStatus) {
+      if (newStatus === 'running' && oldStatus !== 'running' && this.hasWebUI) {
+        // App just started and has web UI, begin health check
+        this.webUIReady = false
+        this.startWebUIHealthCheck()
+      } else if (newStatus !== 'running') {
+        // App stopped, clear health check
+        this.stopWebUIHealthCheck()
+        this.webUIReady = false
+      }
+    },
     hover(val) {
       if (!val && this.dropState)
         this.$refs.dro.toggle()
@@ -130,7 +160,114 @@ export default {
     },
   },
 
+  mounted() {
+    // Check if app is already running when component loads and has web UI
+    if (this.item.status === 'running' && this.item.app_type !== 'system' && !this.isLinkApp && this.hasWebUI) {
+      this.startWebUIHealthCheck()
+    }
+  },
+
+  beforeDestroy() {
+    this.stopWebUIHealthCheck()
+  },
+
   methods: {
+    getWebUIWaitingMessage() {
+      if (!this.webUICheckStartTime) return "Waiting for app interface..."
+
+      const waitTime = Date.now() - this.webUICheckStartTime
+      const minutes = Math.floor(waitTime / 60000)
+
+      if (minutes < 0.5) return "Waiting for app interface..."
+      if (minutes < 1) return "App is initializing..."
+      if (minutes < 2) return "Still waiting for app to be ready..."
+      if (minutes < 3) return "App is taking longer than usual..."
+      return "App is still initializing, this may take several minutes..."
+    },
+
+    getIconCursorStyle() {
+      // Show default cursor when web UI is initializing (not clickable but not forbidden)
+      if (this.isWebUIInitializing && this.hasWebUI && this.item.status === 'running') {
+        return { cursor: 'default' }
+      }
+      // Show pointer for clickable state
+      return { cursor: 'pointer' }
+    },
+
+    async checkWebUIHealth() {
+      if (this.item.app_type === 'system' || this.item.app_type === 'LinkApp') {
+        this.webUIReady = true
+        return true
+      }
+
+      try {
+        if (this.isV2App) {
+          const res = await this.$openAPI.appManagement.compose.checkComposeAppHealthByID(this.item.name)
+          if (res.status === 200) {
+            this.webUIReady = true
+            return true
+          }
+        } else if (this.isV1App) {
+          const res = await this.$api.container.containerLauncherCheck(this.item.name)
+          if (res.data.success === 200) {
+            this.webUIReady = true
+            return true
+          }
+        }
+        return false
+      } catch (error) {
+        return false
+      }
+    },
+
+    startWebUIHealthCheck() {
+      // Prevent multiple health check cycles
+      if (this.isWebUIInitializing) {
+        return
+      }
+
+      if (this.healthCheckTimer) {
+        clearTimeout(this.healthCheckTimer)
+      }
+
+      this.isWebUIInitializing = true
+      this.webUICheckStartTime = Date.now()
+      this.webUIReady = false
+      this.healthCheckBackoff = 2000
+
+      this.performHealthCheckCycle()
+    },
+
+    async performHealthCheckCycle() {
+      if (this.item.status !== 'running') {
+        this.stopWebUIHealthCheck()
+        return
+      }
+
+      const isHealthy = await this.checkWebUIHealth()
+
+      if (isHealthy) {
+        this.stopWebUIHealthCheck()
+        return
+      }
+
+      this.healthCheckBackoff = Math.min(this.healthCheckBackoff * 1.5, this.maxHealthCheckBackoff)
+
+      this.healthCheckTimer = setTimeout(() => {
+        this.performHealthCheckCycle()
+      }, this.healthCheckBackoff)
+    },
+
+    stopWebUIHealthCheck() {
+      if (this.healthCheckTimer) {
+        clearTimeout(this.healthCheckTimer)
+        this.healthCheckTimer = null
+      }
+      this.isWebUIInitializing = false
+      this.webUICheckStartTime = null
+      this.healthCheckBackoff = 2000
+    },
+
     handleDorpdownPosition(event) {
       this.$nextTick(() => {
         const rightOffset = window.innerWidth - event.clientX - 160
@@ -148,6 +285,11 @@ export default {
      * @return {*} void
      */
     openApp(item) {
+      // Block clicks if web UI is initializing (patient waiting)
+      if (this.isWebUIInitializing && this.hasWebUI && item.status === 'running') {
+        return  // Do nothing - wait for web UI to be ready
+      }
+
       if (this.isContainerApp) {
         this.$emit('importApp', item, false)
         return false
@@ -163,7 +305,16 @@ export default {
         // type is one of 'official' or 'community'.
         this.$refs.dro.isActive = false
         if (item.status === 'running') {
-          this.openAppToNewWindow(item)
+          if (this.webUIReady || !this.hasWebUI) {
+            // App is ready OR has no web UI - open directly
+            this.openAppToNewWindow(item)
+          } else if (this.isWebUIInitializing) {
+            // User clicked during initialization, send to loading page as fallback
+            this.firstOpenThirdApp(item)
+          } else if (this.hasWebUI) {
+            // App has web UI but not ready yet - send to loading page
+            this.firstOpenThirdApp(item)
+          }
         }
         else {
           this.toggle(item)
@@ -569,6 +720,9 @@ export default {
       if (res.Properties['app:name'] === this.item.name) {
         this.isRestarting = false
         this.isStarting = false
+        if (this.hasWebUI) {
+          this.startWebUIHealthCheck()
+        }
       }
     },
     'app:stop-error': function (res) {
@@ -583,6 +737,8 @@ export default {
       if (res.Properties['app:name'] === this.item.name) {
         this.isRestarting = false
         this.isStarting = false
+        this.stopWebUIHealthCheck()
+        this.webUIReady = false
       }
     },
     'app:restart-error': function (res) {
@@ -597,6 +753,10 @@ export default {
       if (res.Properties['app:name'] === this.item.name) {
         this.isRestarting = false
         this.isStarting = false
+        this.webUIReady = false
+        if (this.hasWebUI) {
+          this.startWebUIHealthCheck()
+        }
       }
     },
     'app:apply-changes-begin': function (res) {
@@ -695,7 +855,7 @@ export default {
 
 <template>
   <div
-    class="common-card is-flex is-align-items-center is-justify-content-center  app-card"
+    :class="['common-card', 'is-flex', 'is-align-items-center', 'is-justify-content-center', 'app-card', { 'web-ui-initializing': isWebUIInitializing && hasWebUI && item.status === 'running' }]"
     @mouseleave="hover = true" @mouseover="hover = true"
   >
     <!-- Action Button Start -->
@@ -806,10 +966,20 @@ export default {
               <b-image
                 :class="dotClass(item.status, isLoading)" :src="item.icon"
                 :src-fallback="require('@/assets/img/app/default.svg')" class="is-64x64"
+                :style="getIconCursorStyle()"
                 webp-fallback=".jpg" @click.native="openApp(item)"
               />
               <!-- Unstable -->
               <CTooltip v-if="newAppIds.includes(item.name)" class="__position" content="NEW" />
+
+              <!-- Web UI Initialization Animation Start -->
+              <div
+                v-if="isWebUIInitializing && !isUninstalling && !isUpdating && !isRestarting && !isStarting && !isSaving && !isRebuilding && item.status === 'running' && hasWebUI"
+                class="web-ui-loading-overlay"
+              >
+                <div class="pulsing-ring"></div>
+              </div>
+              <!-- Web UI Initialization Animation End -->
             </div>
 
             <!-- Loading Bar Start -->
@@ -844,6 +1014,49 @@ export default {
   border-radius: 50%;
   background-color: #000;
   color: #fff;
+}
+
+.web-ui-loading-overlay {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 25;
+}
+
+// Disable hover effects during web UI initialization
+.common-card.web-ui-initializing {
+  &:hover {
+    box-shadow: none !important;
+  }
+}
+
+.pulsing-ring {
+  width: 64px;
+  height: 64px;
+  border: 3px solid rgba(59, 130, 246, 0.9);
+  border-radius: 11.5px;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    border-color: rgba(59, 130, 246, 1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8), inset 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+  50% {
+    border-color: rgba(59, 130, 246, 0.7);
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0), inset 0 0 25px rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    border-color: rgba(59, 130, 246, 1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0), inset 0 0 20px rgba(59, 130, 246, 0.6);
+  }
 }
 
 .app-card-drop {
