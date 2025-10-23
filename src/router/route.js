@@ -19,6 +19,26 @@ export default [
 		}
 	},
 	{
+		path: '/auth/magic',
+		name: 'MagicLinkVerify',
+		hidden: true,
+		component: () => import('@/views/MagicLinkVerify.vue'),
+		meta: {
+			requireAuth: false,
+			showBackground: true
+		}
+	},
+	{
+		path: '/auth/password-reset',
+		name: 'PasswordReset',
+		hidden: true,
+		component: () => import('@/views/PasswordReset.vue'),
+		meta: {
+			requireAuth: false,
+			showBackground: true
+		}
+	},
+	{
 		path: '/welcome',
 		name: 'Welcome',
 		hidden: true,

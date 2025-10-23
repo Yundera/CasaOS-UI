@@ -132,9 +132,64 @@ const users = {
 		return api.delete(`${PREFIX2}/event/${uuid}`);
 	},
 
-	// save user avatar 
+	// save user avatar
 	saveAvatar(data) {
 		return api.put(`${PREFIX}/avatar`, data);
+	},
+
+	// Auth services - Magic Link
+	// request magic link email
+	requestMagicLink(email) {
+		return api.post('/auth/magic-link/request', {
+			email: email
+		});
+	},
+
+	// verify magic link token
+	verifyMagicLink(token) {
+		return api.post('/auth/magic-link/verify', {
+			token: token
+		});
+	},
+
+	// verify magic link code
+	verifyMagicCode(email, code) {
+		return api.post('/auth/magic-link/verify', {
+			email: email,
+			code: code
+		});
+	},
+
+	// Auth services - Password Reset
+	// request password reset email
+	requestPasswordReset(email) {
+		return api.post('/auth/password-reset/request', {
+			email: email
+		});
+	},
+
+	// verify password reset token
+	verifyPasswordResetToken(token) {
+		return api.post('/auth/password-reset/verify', {
+			token: token
+		});
+	},
+
+	// verify password reset code
+	verifyPasswordResetCode(email, code) {
+		return api.post('/auth/password-reset/verify', {
+			email: email,
+			code: code
+		});
+	},
+
+	// confirm password reset with new password
+	confirmPasswordReset(tokenId, email, newPassword) {
+		return api.post('/auth/password-reset/confirm', {
+			token_id: tokenId,
+			email: email,
+			new_password: newPassword
+		});
 	},
 
 }
