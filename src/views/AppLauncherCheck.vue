@@ -44,16 +44,16 @@ export default {
 			status: "pending",
 			timer: null,
 			isCheckFailed: false,
-			checkCounts: 150,
-			counter: 0
+			checkCounts: 1000,
+			counter: 0,
+			currentInterval: 2000
 		}
 	},
 
 	async created() {
 		this.appDetailData = JSON.parse(this.$route.query.appDetailData)
 		const startRes = await this.startContainer()
-		this.timer && clearInterval(this.timer)
-		this.timer = setInterval(this.check, 2000)
+		this.scheduleNextCheck()
 		this.check()
 	},
 
@@ -88,21 +88,38 @@ export default {
 			}
 		},
 
+		calculateInterval() {
+			const baseInterval = 2000
+			const maxInterval = 10000
+			const increaseEvery = 10
+
+			const additionalTime = Math.floor(this.counter / increaseEvery) * 1000
+			const interval = baseInterval + additionalTime
+
+			return Math.min(interval, maxInterval)
+		},
+
+		scheduleNextCheck() {
+			this.timer && clearTimeout(this.timer)
+			this.currentInterval = this.calculateInterval()
+			this.timer = setTimeout(this.check, this.currentInterval)
+		},
+
 		async check() {
 			this.counter += 1
 			const isOk = await this.healthCheck()
 			if (isOk) {
-				clearInterval(this.timer)
+				clearTimeout(this.timer)
 				this.openThirdApp(this.appDetailData)
 			} else if (this.counter >= this.checkCounts) {
 				this.status = "reject"
-				clearInterval(this.timer)
+				clearTimeout(this.timer)
 			} else {
 				this.isCheckFailed = true
-				// Show manual fallback option after 60 attempts (~2 minutes)
 				if (this.counter >= 60) {
 					this.status = "fallback"
 				}
+				this.scheduleNextCheck()
 			}
 		}
 	}
