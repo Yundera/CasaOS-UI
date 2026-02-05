@@ -40,23 +40,9 @@ export default {
 	methods: {
 		openYunderaAdminPanel() {
 			this.isLoading = true;
-			
-			// Get current hostname and construct admin URL dynamically
-			const currentHostname = window.location.hostname;
-			let adminUrl = '';
-			
-			// Check if hostname follows the pattern xxx.nsl.sh
-			if (currentHostname.includes('.nsl.sh')) {
-				const subdomain = currentHostname.replace('.nsl.sh', '');
-				adminUrl = `https://admin-${subdomain}.nsl.sh/`;
-			} else {
-				// Fallback to original admin panel if pattern doesn't match
-				adminUrl = 'https://app.yundera.com/dashboard#/';
-			}
-			
-			// Open admin URL in new tab
-			window.open(adminUrl, '_blank');
-			
+
+			window.open('https://www.yundera.com/blog/tutorial-1/the-most-famous-open-source-apps-35', '_blank');
+
 			// Reset loading state after a short delay
 			setTimeout(() => {
 				this.isLoading = false;
