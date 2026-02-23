@@ -2,29 +2,29 @@
 	<div class="common-card">
 		<div class="blur-background"></div>
 		<div class="wuji-content _box is-flex is-flex-direction-column">
-			<!-- Manage PCS & Billing Block Start -->
-			<h6 class="title is-4 mb-0 has-text-white is-flex-shrink-0">{{ $t(`Manage Your Private Cloud Server`) }}</h6>
+			<!-- Discover Open Source Apps Block Start -->
+			<h6 class="title is-4 mb-0 has-text-white is-flex-shrink-0">{{ $t(`Discover the most famous open source Apps`) }}</h6>
 			<div class="is-flex is-align-items-center is-flex-grow-1 _notice-content-text">
 				<div class="info">
 					<div class="des is-size-14px">
-						{{ $t(`Restart your server, update payments, or change your domain.`) }}
+						{{ $t(`Explore the most popular open source apps and see which ones to install on your server.`) }}
 					</div>
 				</div>
-				<div class="emoji-icon is-80x80">🛠️</div>
+				<div class="emoji-icon is-80x80">🚀</div>
 			</div>
 			<div class="buttons is-flex is-flex-shrink-0 is-flex-direction-row-reverse">
-				<b-button 
-					class="mb-0" 
-					rounded 
-					size="is-small" 
-					type="is-primary" 
+				<b-button
+					class="mb-0"
+					rounded
+					size="is-small"
+					type="is-primary"
 					@click="openYunderaAdminPanel"
 					:loading="isLoading"
 				>
-					{{ $t(`PCS Settings`) }}
+					{{ $t(`Explore Apps`) }}
 				</b-button>
 			</div>
-			<!-- Manage PCS & Billing Block End -->
+			<!-- Discover Open Source Apps Block End -->
 		</div>
 	</div>
 </template>
