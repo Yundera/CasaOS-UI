@@ -56,7 +56,7 @@
           <b-notification v-model="notificationShow" aria-close-label="Close notification" auto-close role="alert" type="is-danger">
             {{ message }}
           </b-notification>
-          <ValidationProvider v-slot="{ errors, valid }" name="oriPassword" rules="required|min:12" vid="oriPassword">
+          <ValidationProvider v-slot="{ errors, valid }" name="oriPassword" rules="required" vid="oriPassword">
             <b-field :message="$t(errors)" :type="{ 'is-danger': errors[0], 'is-success': valid }" class="mb-5 has-text-light">
               <b-input v-model="oriPassword" :placeholder="$t('Original password')" password-reveal type="password"></b-input>
             </b-field>
