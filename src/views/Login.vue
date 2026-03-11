@@ -113,7 +113,9 @@
 				<div v-if="verifySuccess" class="has-text-centered">
 					<div class="mb-4" style="font-size: 4rem; color: #48c774;">✓</div>
 					<h3 class="title is-5">{{ $t('Code verified!') }}</h3>
-					<p>{{ $t('Logging you in...') }}</p>
+					<p v-if="mode === 'magic-link'">{{ $t('Logging you in...') }}</p>
+					<p v-else>{{ $t('Taking you to set your new password...') }}</p>
+					<b-loading :is-full-page="false" :active="true" :can-cancel="false" class="mt-4"></b-loading>
 				</div>
 
 				<!-- Back Button -->
