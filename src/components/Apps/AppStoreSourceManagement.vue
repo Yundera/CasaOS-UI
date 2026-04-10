@@ -89,7 +89,7 @@ function redirectURL() {
 	if (sourceDorpRef.value) {
 		sourceDorpRef.value.toggle();
 	}
-	window.open("https://awesome.casaos.io/content/3rd-party-app-stores/list.html", "_blank", "noopener");
+	window.open("https://yundera.com/blog/best-apps-1/add-more-apps-to-your-yundera-server-pcs-33", "_blank", "noopener");
 }
 
 function activeInput() {
