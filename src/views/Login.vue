@@ -128,6 +128,7 @@
 				</transition>
 			</div>
 		</div>
+		<div v-if="!isLoading" class="version-label">{{ appVersion }}</div>
 	</div>
 </template>
 
@@ -159,6 +160,11 @@ export default {
 	components: {
 		ValidationObserver,
 		ValidationProvider,
+	},
+	computed: {
+		appVersion() {
+			return process.env.VUE_APP_VERSION || '?'
+		}
 	},
 	beforeMount(){
 		let userString = localStorage.getItem('user')
@@ -305,6 +311,14 @@ export default {
 	height: calc(100% - 5.5rem);
 	position: relative;
 	z-index: 500;
+
+	.version-label {
+		position: absolute;
+		bottom: 8px;
+		left: 12px;
+		font-size: 0.7rem;
+		color: rgba(255, 255, 255, 0.5);
+	}
 
 	.login-panel {
 		text-align: left;
