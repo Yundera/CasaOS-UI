@@ -20,6 +20,7 @@ import ComposeConfig from '@/components/Apps/ComposeConfig.vue'
 import business_OpenThirdApp from '@/mixins/app/Business_OpenThirdApp'
 import business_ShowNewAppTag from '@/mixins/app/Business_ShowNewAppTag'
 import AppsInstallationLocation from '@/components/Apps/AppsInstallationLocation'
+import { instance as axiosInstance } from '@/service/service'
 
 const data = [
   'AUDIT_CONTROL',
@@ -128,6 +129,10 @@ export default {
       pageList: {},
       communityList: {},
       recommendList: {},
+      viewMode: 'combined',
+      storeGroups: [],
+      registeredStores: [],
+      isRefreshing: false,
       currentSlide: 0,
       currentInstallId: '',
 
@@ -278,6 +283,15 @@ export default {
         }
         return false
       })
+    },
+    displayGroups() {
+      if (this.viewMode === 'split' && this.storeGroups.length > 1) {
+        return this.storeGroups.map(g => ({
+          store: g.store,
+          apps: this.filterAppsBySearch(g.apps),
+        }))
+      }
+      return [{ store: null, apps: this.filteredPageList }]
     },
     isMobile() {
       return this.$store.state.isMobile
@@ -504,52 +518,156 @@ export default {
       try {
         const category = this.currentCate.name
         const authorType = this.currentAuthor.name
-        let res
-        if (authorType !== 'All' && category !== 'All') {
-          res = await this.$openAPI.appManagement.appStore
-            .composeAppStoreInfoList(category, authorType)
-            .then(res => res.data.data)
-        }
-        else if (authorType !== 'All') {
-          res = await this.$openAPI.appManagement.appStore
-            .composeAppStoreInfoList(undefined, authorType)
-            .then(res => res.data.data)
-        }
-        else if (category !== 'All') {
-          res = await this.$openAPI.appManagement.appStore
-            .composeAppStoreInfoList(category, undefined, false)
-            .then(res => res.data.data)
-        }
-        else {
-          res = await this.$openAPI.appManagement.appStore
-            .composeAppStoreInfoList()
-            .then(res => res.data.data)
+        const cat = category !== 'All' ? category : undefined
+        const auth = authorType !== 'All' ? authorType : undefined
+        const recommend = (cat && !auth) ? false : undefined
+
+        if (this.viewMode === 'split') {
+          await this.refreshRegisteredStores()
         }
 
-        const list = res.list
-        const listRes = Object.keys(list).map((id) => {
-          const main_app_info = list[id]
-          return {
-            id,
-            category: main_app_info.category,
-            icon: main_app_info.icon,
-            tagline: ice_i18n(main_app_info.tagline),
-            thumbnail: main_app_info.thumbnail || main_app_info.screenshot_link?.[0],
-            title: ice_i18n(main_app_info.title),
-            state: 0,
-            architectures: main_app_info.architectures,
-            // scheme: main_app_info.apps[id].scheme,
-            // port: main_app_info.apps[id].port_map,
-            // index: main_app_info.apps[id].index,
+        if (this.viewMode === 'split' && this.registeredStores.length > 1) {
+          const groups = []
+          let installedAcc = []
+          for (const store of this.registeredStores) {
+            try {
+              const params = { store_id: store.id }
+              if (cat) params.category = cat
+              if (auth) params.author_type = auth
+              if (recommend !== undefined) params.recommend = recommend
+              const res = await axiosInstance
+                .get('/v2/app_management/apps', { params })
+                .then(r => r.data.data)
+              groups.push({
+                store,
+                apps: this.mapAppList(res.list || {}),
+              })
+              installedAcc = installedAcc.concat(res.installed || [])
+            }
+            catch (storeErr) {
+              console.log(`failed to load store ${store.name}`, storeErr)
+              groups.push({ store, apps: [] })
+            }
           }
-        })
-        this.pageList = listRes
-        this.installedList = res.installed
+          this.storeGroups = groups
+          this.pageList = groups.flatMap(g => g.apps)
+          this.installedList = Array.from(new Set(installedAcc))
+        }
+        else {
+          const res = await this.$openAPI.appManagement.appStore
+            .composeAppStoreInfoList(cat, auth, recommend)
+            .then(r => r.data.data)
+          this.pageList = this.mapAppList(res.list || {})
+          this.installedList = res.installed || []
+          this.storeGroups = []
+        }
       }
       catch (e) {
         console.log('load store list error', e)
       }
       this.isLoading = false
+    },
+
+    filterAppsBySearch(apps) {
+      if (!this.searchKey) return apps
+      return apps.filter((app) => {
+        const keywords = (app.title + app.tagline)?.toLocaleLowerCase() ?? ''
+        for (const term of this.searchKey.split(' ')) {
+          if (keywords.includes(term.toLocaleLowerCase())) return true
+        }
+        return false
+      })
+    },
+
+    mapAppList(list) {
+      return Object.keys(list).map((id) => {
+        const main_app_info = list[id]
+        return {
+          id,
+          category: main_app_info.category,
+          icon: main_app_info.icon,
+          tagline: ice_i18n(main_app_info.tagline),
+          thumbnail: main_app_info.thumbnail || main_app_info.screenshot_link?.[0],
+          title: ice_i18n(main_app_info.title),
+          state: 0,
+          architectures: main_app_info.architectures,
+        }
+      })
+    },
+
+    async refreshRegisteredStores() {
+      try {
+        const res = await this.$openAPI.appManagement.appStore.appStoreList()
+        const stores = (res?.data?.data || []).filter((s) => {
+          if (!s || !s.url) return false
+          // Match AppStoreSourceManagement display filter (hide IceWhaleTech default)
+          try {
+            const isHttp = s.url.includes('http')
+            const pathname = isHttp ? new URL(s.url).pathname : s.url
+            const parts = pathname.split('/')
+            return parts[1] !== 'IceWhaleTech'
+          }
+          catch (e) {
+            return true
+          }
+        })
+        this.registeredStores = stores.map(s => ({
+          id: s.id,
+          url: s.url,
+          name: this.deriveStoreName(s.url),
+        }))
+      }
+      catch (e) {
+        console.log('failed to load registered stores', e)
+        this.registeredStores = []
+      }
+    },
+
+    deriveStoreName(url) {
+      try {
+        if (url.includes('http')) {
+          const pathname = new URL(url).pathname
+          const parts = pathname.split('/').filter(Boolean)
+          if (parts.length >= 2) return `${parts[0]} - ${parts[1]}`
+          return parts[0] || url
+        }
+        const parts = url.split('/')
+        return parts[parts.length - 1].split('.').slice(0, -1).join('.') || url
+      }
+      catch (e) {
+        return url
+      }
+    },
+
+    onViewModeChange(mode) {
+      if (mode !== this.viewMode) {
+        this.viewMode = mode
+        this.getStoreList()
+      }
+    },
+
+    async refreshAppStores() {
+      if (this.isRefreshing) return
+      this.isRefreshing = true
+      try {
+        await axiosInstance.post('/v2/app_management/appstore/refresh')
+        await this.getStoreList()
+        this.$buefy.toast.open({
+          message: this.$t('App stores refreshed'),
+          type: 'is-success',
+          duration: 3000,
+        })
+      }
+      catch (e) {
+        this.$buefy.toast.open({
+          message: e?.response?.data?.message || this.$t('Failed to refresh app stores'),
+          type: 'is-danger',
+          duration: 5000,
+        })
+      }
+      finally {
+        this.isRefreshing = false
+      }
     },
 
     /**
@@ -1500,79 +1618,112 @@ export default {
               />
             </transition>
             <div class="is-flex-grow-1" />
+            <b-tooltip
+              v-show="searchAndSourcesStatus !== 'showSearch'"
+              :label="$t('Refresh app stores')"
+              position="is-bottom"
+              type="is-dark"
+            >
+              <button
+                class="appstore-refresh-button mdi mdi-refresh ml-2"
+                :class="{ 'is-spinning': isRefreshing }"
+                :disabled="isRefreshing"
+                type="button"
+                @click="refreshAppStores"
+              />
+            </b-tooltip>
             <AppStoreSourceManagement
               v-show="searchAndSourcesStatus !== 'showSearch'"
               :total-apps="pageList.length"
+              :view-mode="viewMode"
               class="ml-2"
               @refreshAppStore="getStoreList"
               @refreshSize="refreshAppStoreSourceManagementSizeStatus"
+              @view-mode-change="onViewModeChange"
             />
           </div>
 
           <!-- List condition End -->
           <!-- App list Start -->
-          <div class="columns f-list is-multiline is-mobile pb-3 mb-5">
+          <template v-for="group in displayGroups">
             <div
-              v-for="(item, index) in filteredPageList"
-              :key="index + item.title + item.id"
-              class="column app-item is-one-quarter"
+              v-if="group.store"
+              :key="`store-title-${group.store.id}`"
+              class="store-group-header is-flex is-align-items-center mt-4 mb-2"
             >
-              <div class="is-flex">
-                <div class="mr-4 is-clickable" @click="showAppDetial(item.id)">
-                  <b-image
-                    :src="item.icon"
-                    :src-fallback="require('@/assets/img/app/default.svg')"
-                    class="is-64x64 icon-shadow"
-                    style="display: flex; align-items: center"
-                    webp-fallback=".jpg"
-                  />
+              <h3 class="title is-6 has-text-weight-semibold mb-0">
+                {{ group.store.name }}
+              </h3>
+              <span class="has-text-grey-light is-size-7 ml-2">
+                {{ group.apps.length }} {{ $t('apps') }}
+              </span>
+            </div>
+            <div
+              :key="`store-grid-${group.store ? group.store.id : 'all'}`"
+              class="columns f-list is-multiline is-mobile pb-3 mb-5"
+            >
+              <div
+                v-for="(item, index) in group.apps"
+                :key="(group.store ? group.store.id : 'all') + '-' + index + item.title + item.id"
+                class="column app-item is-one-quarter"
+              >
+                <div class="is-flex">
+                  <div class="mr-4 is-clickable" @click="showAppDetial(item.id)">
+                    <b-image
+                      :src="item.icon"
+                      :src-fallback="require('@/assets/img/app/default.svg')"
+                      class="is-64x64 icon-shadow"
+                      style="display: flex; align-items: center"
+                      webp-fallback=".jpg"
+                    />
+                  </div>
+                  <div
+                    class="is-flex-grow-1 mr-4 is-clickable"
+                    @click="
+                      showAppDetial(item.id)
+                      $messageBus('appstore_detail', item.title)
+                    "
+                  >
+                    <h6 class="title is-6 mb-2">
+                      {{ item.title }}
+                    </h6>
+                    <p class="is-size-7 two-line">
+                      {{ item.tagline }}
+                    </p>
+                  </div>
                 </div>
-                <div
-                  class="is-flex-grow-1 mr-4 is-clickable"
-                  @click="
-                    showAppDetial(item.id)
-                    $messageBus('appstore_detail', item.title)
-                  "
-                >
-                  <h6 class="title is-6 mb-2">
-                    {{ item.title }}
-                  </h6>
-                  <p class="is-size-7 two-line">
-                    {{ item.tagline }}
-                  </p>
+                <div class="mt-1 ml-7 is-flex is-align-items-center">
+                  <div class="is-flex-grow-1 is-size-7 has-text-grey-light">
+                    {{ item.category }}
+                  </div>
+                  <b-button
+                    v-if="installedList.includes(item.id)"
+                    :loading="item.id == currentInstallId"
+                    rounded
+                    size="is-small"
+                    type="is-primary is-light"
+                    @click="openThirdContainerByAppInfo(item)"
+                  >
+                    {{ $t('launch-and-open') }}
+                  </b-button>
+                  <b-button
+                    v-else
+                    :disabled="!item.architectures?.includes(arch)"
+                    :loading="item.id == currentInstallId"
+                    rounded
+                    size="is-small"
+                    type="is-primary is-light"
+                    @click="
+                      quickInstall(item.id)
+                      $messageBus('appstore_install', item.title)
+                    "
+                  >
+                    {{ $t('Install') }}
+                  </b-button>
                 </div>
-              </div>
-              <div class="mt-1 ml-7 is-flex is-align-items-center">
-                <div class="is-flex-grow-1 is-size-7 has-text-grey-light">
-                  {{ item.category }}
-                </div>
-                <b-button
-                  v-if="installedList.includes(item.id)"
-                  :loading="item.id == currentInstallId"
-                  rounded
-                  size="is-small"
-                  type="is-primary is-light"
-                  @click="openThirdContainerByAppInfo(item)"
-                >
-                  {{ $t('launch-and-open') }}
-                </b-button>
-                <b-button
-                  v-else
-                  :disabled="!item.architectures?.includes(arch)"
-                  :loading="item.id == currentInstallId"
-                  rounded
-                  size="is-small"
-                  type="is-primary is-light"
-                  @click="
-                    quickInstall(item.id)
-                    $messageBus('appstore_install', item.title)
-                  "
-                >
-                  {{ $t('Install') }}
-                </b-button>
               </div>
             </div>
-          </div>
+          </template>
 
           <!-- App list End -->
 
@@ -2134,6 +2285,45 @@ export default {
     height: 1.5rem;
     min-width: 1.5rem;
     min-height: 1.5rem;
+}
+
+.appstore-refresh-button {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    color: inherit;
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover:not(:disabled) {
+        background: hsla(0, 0%, 0%, 0.05);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    &.is-spinning::before {
+        animation: appstore-refresh-spin 1s linear infinite;
+        display: inline-block;
+    }
+}
+
+@keyframes appstore-refresh-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.store-group-header {
+    border-bottom: 1px solid hsla(208, 16%, 94%, 1);
+    padding-bottom: 0.5rem;
 }
 
 ._hideOverflow {

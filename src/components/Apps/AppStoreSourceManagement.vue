@@ -1,8 +1,11 @@
 <script setup>
 import { getCurrentInstance, onBeforeUnmount, onMounted, ref } from "vue";
 
-const emit = defineEmits(["refreshAppStore", "refreshSize", "close"]);
-const props = defineProps(['totalApps']);
+const emit = defineEmits(["refreshAppStore", "refreshSize", "close", "view-mode-change"]);
+const props = defineProps({
+	totalApps: { type: Number, default: 0 },
+	viewMode: { type: String, default: 'combined' },
+});
 import { vOnClickOutside } from '@vueuse/components'
 /*
 const stateBox = {
@@ -85,6 +88,11 @@ function unregisterAppStore(id) {
 	})
 }
 
+function toggleViewMode() {
+	const next = props.viewMode === 'split' ? 'combined' : 'split';
+	emit('view-mode-change', next);
+}
+
 function redirectURL() {
 	if (sourceDorpRef.value) {
 		sourceDorpRef.value.toggle();
@@ -106,7 +114,12 @@ function getSourceList() {
 				const isHttp = item.url.includes("http");
 				const pathname = isHttp ? new URL(item.url).pathname : item.url;
 				const pathnameList = pathname.split("/");
-				const sourceName = isHttp ? pathnameList[1] : pathnameList[pathnameList.length - 1].split('.').slice(0, -1).join('.');
+				let sourceName;
+				if (isHttp) {
+					sourceName = pathnameList[2] ? `${pathnameList[1]} - ${pathnameList[2]}` : pathnameList[1];
+				} else {
+					sourceName = pathnameList[pathnameList.length - 1].split('.').slice(0, -1).join('.');
+				}
 				if (pathnameList[1] === "IceWhaleTech") {
 					return false
 				} else {
@@ -172,6 +185,14 @@ onBeforeUnmount(() => {
 						</b-button>
 					</template>
 
+					<b-dropdown-item v-if="sourceList.length > 1" aria-role="menu-item" custom class="view-mode-row">
+						<div class="is-flex is-align-items-center is-justify-content-space-between" @click.stop>
+							<span class="has-text-full-04 is-size-7">{{ $t('View per store') }}</span>
+							<b-switch :value="props.viewMode === 'split'" size="is-small" @input="toggleViewMode" />
+						</div>
+					</b-dropdown-item>
+					<hr v-if="sourceList.length > 1" class="dropdown-divider">
+
 					<b-dropdown-item v-for="item in sourceList" :key="item.id" aria-role="menu-item" custom>
 						<p :ref="`removeButton${item.id}`" class="is-flex is-align-items-center">
 							<span class="has-text-full-04 is-flex-grow-1 one-line">{{ item.name }}</span>
@@ -224,8 +245,12 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .source-dropdown {
 	::v-deep .dropdown-menu {
-		min-width: 11rem !important;
+		min-width: 13rem !important;
 	}
+}
+
+.view-mode-row {
+	cursor: default !important;
 }
 
 .add-tooltip {
