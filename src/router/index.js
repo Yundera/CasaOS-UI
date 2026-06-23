@@ -34,6 +34,10 @@ const needInit = async () => {
 	}
 	try {
 		let userStatusRes = await api.users.getUserStatus();
+		if (userStatusRes.data.success === 200) {
+			// Tell the login UI whether to offer passwordless email sign-in
+			store.commit('SET_EMAIL_LOGIN_ENABLED', userStatusRes.data.data.email_login_enabled === true)
+		}
 		if (userStatusRes.data.success === 200 && !userStatusRes.data.data.initialized) {
 			store.commit('SET_NEED_INITIALIZATION', true)
 			store.commit('SET_INIT_KEY', userStatusRes.data.data.key)

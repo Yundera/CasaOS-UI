@@ -160,38 +160,6 @@ const users = {
 		});
 	},
 
-	// Auth services - Password Reset
-	// request password reset email
-	requestPasswordReset(email) {
-		return api.post('/auth/password-reset/request', {
-			email: email
-		});
-	},
-
-	// verify password reset token
-	verifyPasswordResetToken(token) {
-		return api.post('/auth/password-reset/verify', {
-			token: token
-		});
-	},
-
-	// verify password reset code
-	verifyPasswordResetCode(email, code) {
-		return api.post('/auth/password-reset/verify', {
-			email: email,
-			code: code
-		});
-	},
-
-	// confirm password reset with new password
-	confirmPasswordReset(tokenId, email, newPassword) {
-		return api.post('/auth/password-reset/confirm', {
-			token_id: tokenId,
-			email: email,
-			new_password: newPassword
-		});
-	},
-
 }
 
 export default users;

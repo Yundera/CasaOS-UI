@@ -32,18 +32,11 @@
 					</b-field>
 				</ValidationProvider>
 
-				<!-- Forgot Password Link -->
-				<div class="has-text-centered mt-3">
-					<a @click="mode = 'password-reset'" class="has-text-link is-size-7" style="cursor: pointer;">
-						{{ $t('Forgot password?') }}
-					</a>
-				</div>
-
 				<b-button class="mt-4" expanded rounded type="is-primary" @click="handleSubmit(login)">{{ $t('Login') }}
 				</b-button>
 
-				<!-- Magic Link Button -->
-				<div class="has-text-centered mt-4">
+				<!-- Magic Link Button (only when email sign-in is configured on this PCS) -->
+				<div v-if="emailLoginEnabled" class="has-text-centered mt-4">
 					<a @click="mode = 'magic-link'" class="has-text-link is-size-7" style="cursor: pointer; opacity: 0.8;">
 						{{ $t('Sign in with magic link') }}
 					</a>
@@ -51,10 +44,10 @@
 					</ValidationObserver>
 				</div>
 
-				<!-- Magic Link / Password Reset Mode -->
-				<div v-else-if="mode === 'magic-link' || mode === 'password-reset'" :key="mode">
+				<!-- Magic Link Mode -->
+				<div v-else-if="mode === 'magic-link'" :key="mode">
 				<h3 class="title is-5 has-text-centered mb-4">
-					{{ mode === 'magic-link' ? $t('Sign in with magic link') : $t('Reset your password') }}
+					{{ $t('Sign in with magic link') }}
 				</h3>
 
 				<!-- Email Input (show when email not sent yet) -->
@@ -72,7 +65,7 @@
 							  @click="sendAuthEmail"
 							  :disabled="!canSendEmail"
 							  :loading="sendingEmail">
-						{{ mode === 'magic-link' ? $t('Send Magic Link') : $t('Send Reset Link') }}
+						{{ $t('Send Magic Link') }}
 					</b-button>
 				</div>
 
@@ -113,8 +106,7 @@
 				<div v-if="verifySuccess" class="has-text-centered">
 					<div class="mb-4" style="font-size: 4rem; color: #48c774;">✓</div>
 					<h3 class="title is-5">{{ $t('Code verified!') }}</h3>
-					<p v-if="mode === 'magic-link'">{{ $t('Logging you in...') }}</p>
-					<p v-else>{{ $t('Taking you to set your new password...') }}</p>
+					<p>{{ $t('Logging you in...') }}</p>
 					<b-loading :is-full-page="false" :active="true" :can-cancel="false" class="mt-4"></b-loading>
 				</div>
 
@@ -141,7 +133,7 @@ export default {
 	name: "login-page",
 	data() {
 		return {
-			mode: 'normal', // 'normal', 'magic-link', 'password-reset'
+			mode: 'normal', // 'normal', 'magic-link'
 			username: '',
 			password: '',
 			email: '',
@@ -164,6 +156,11 @@ export default {
 	computed: {
 		appVersion() {
 			return process.env.VUE_APP_VERSION || '?'
+		},
+		// Whether this PCS has email sign-in configured (USER_EMAIL + SMTP).
+		// Reported by GET /v1/users/status and stored by the router guard.
+		emailLoginEnabled() {
+			return this.$store.state.emailLoginEnabled
 		}
 	},
 	beforeMount(){
@@ -211,13 +208,8 @@ export default {
 			try {
 				this.sendingEmail = true
 
-				if (this.mode === 'magic-link') {
-					await this.$api.users.requestMagicLink(this.email)
-					this.message = this.$t('Magic link sent to your email')
-				} else {
-					await this.$api.users.requestPasswordReset(this.email)
-					this.message = this.$t('Password reset link sent to your email')
-				}
+				await this.$api.users.requestMagicLink(this.email)
+				this.message = this.$t('Magic link sent to your email')
 
 				this.notificationType = 'is-success'
 				this.notificationShow = true
@@ -235,50 +227,31 @@ export default {
 			try {
 				this.verifyingCode = true
 
-				if (this.mode === 'magic-link') {
-					// Verify magic link code and log in
-					const res = await this.$api.users.verifyMagicCode(this.email, this.code)
+				// Verify magic link code and log in
+				const res = await this.$api.users.verifyMagicCode(this.email, this.code)
 
-					// Show success state
-					this.verifySuccess = true
+				// Show success state
+				this.verifySuccess = true
 
-					// Store tokens and user info
-					localStorage.setItem("access_token", res.data.data.token.access_token)
-					localStorage.setItem("refresh_token", res.data.data.token.refresh_token)
-					localStorage.setItem("expires_at", res.data.data.token.expires_at)
-					localStorage.setItem("user", JSON.stringify(res.data.data.user))
+				// Store tokens and user info
+				localStorage.setItem("access_token", res.data.data.token.access_token)
+				localStorage.setItem("refresh_token", res.data.data.token.refresh_token)
+				localStorage.setItem("expires_at", res.data.data.token.expires_at)
+				localStorage.setItem("user", JSON.stringify(res.data.data.user))
 
-					this.$store.commit("SET_USER", res.data.data.user)
-					this.$store.commit("SET_ACCESS_TOKEN", res.data.data.token.access_token)
-					this.$store.commit("SET_REFRESH_TOKEN", res.data.data.token.refresh_token)
+				this.$store.commit("SET_USER", res.data.data.user)
+				this.$store.commit("SET_ACCESS_TOKEN", res.data.data.token.access_token)
+				this.$store.commit("SET_REFRESH_TOKEN", res.data.data.token.refresh_token)
 
-					const versionRes = await this.$api.sys.getVersion()
-					if (versionRes.data.success == 200) {
-						localStorage.setItem("version", versionRes.data.data.current_version)
-					}
-
-					// Wait a moment to show success message, then redirect
-					setTimeout(() => {
-						this.$router.push("/")
-					}, 1000)
-				} else {
-					// Verify password reset code
-					const res = await this.$api.users.verifyPasswordResetCode(this.email, this.code)
-
-					// Show success state
-					this.verifySuccess = true
-
-					// Wait a moment, then redirect to password reset page
-					setTimeout(() => {
-						this.$router.push({
-							path: '/auth/password-reset',
-							query: {
-								token_id: res.data.data.token_id,
-								email: res.data.data.email
-							}
-						})
-					}, 800)
+				const versionRes = await this.$api.sys.getVersion()
+				if (versionRes.data.success == 200) {
+					localStorage.setItem("version", versionRes.data.data.current_version)
 				}
+
+				// Wait a moment to show success message, then redirect
+				setTimeout(() => {
+					this.$router.push("/")
+				}, 1000)
 			} catch (err) {
 				this.message = this.$t('Invalid code. Please try again.')
 				this.notificationType = 'is-danger'

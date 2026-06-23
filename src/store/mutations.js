@@ -25,6 +25,10 @@ const mutations = {
 		state.needInitialization = need
 	},
 
+	SET_EMAIL_LOGIN_ENABLED(state, enabled) {
+		state.emailLoginEnabled = enabled
+	},
+
 	SET_SIDEBAR_CLOSE(state) {
 		state.sidebarOpen = false
 	},

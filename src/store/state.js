@@ -26,6 +26,9 @@ const state = {
 
 	siteLoading: true,
 	needInitialization: false,
+	// Whether passwordless email sign-in is available on this PCS
+	// (USER_EMAIL + SMTP configured). Set from GET /v1/users/status.
+	emailLoginEnabled: false,
 	hardwareInfo: {},
 	isMobile: false,
 
